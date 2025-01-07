@@ -1,4 +1,4 @@
-module common
+module github.com/JokerTrickster/common
 
 go 1.22.1
 
