@@ -6,7 +6,6 @@ import (
 	"log"
 	"sync"
 
-	"github.com/JokerTrickster/common/aws"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -27,23 +26,20 @@ func GetRedisService() *RedisService {
 }
 
 // Initialize initializes the Redis client
-func (r *RedisService) Initialize(ctx context.Context, isLocal bool, ssmKeys []string) error {
+func (r *RedisService) Initialize(ctx context.Context, connectionString string) error {
 	var err error
 	r.initOnce.Do(func() {
-		connectionString, e := r.getConnectionString(ctx, isLocal, ssmKeys)
-		if e != nil {
-			err = e
-			return
-		}
-
+		// Parse the Redis connection string
 		opt, e := redis.ParseURL(connectionString)
 		if e != nil {
 			err = fmt.Errorf("failed to parse Redis URL: %w", e)
 			return
 		}
 
+		// Create a new Redis client
 		r.client = redis.NewClient(opt)
 
+		// Test the connection
 		_, e = r.client.Ping(ctx).Result()
 		if e != nil {
 			err = fmt.Errorf("failed to connect to Redis: %w", e)
@@ -61,28 +57,4 @@ func (r *RedisService) GetClient(ctx context.Context) (*redis.Client, error) {
 		return nil, fmt.Errorf("Redis client is not initialized. Call Initialize first")
 	}
 	return r.client, nil
-}
-
-// getConnectionString generates the Redis connection string
-func (r *RedisService) getConnectionString(ctx context.Context, isLocal bool, ssmKeys []string) (string, error) {
-	if isLocal {
-		user := getEnvOrFallback("REDIS_USER", "")
-		password := getEnvOrFallback("REDIS_PASSWORD", "")
-		return fmt.Sprintf("redis://%s:%s@localhost:6379/0", user, password), nil
-	}
-
-	ssmServiceClient := aws.SSMService{}
-	dbInfos, err := ssmServiceClient.AwsSsmGetParams(ctx, ssmKeys)
-	if err != nil {
-		return "", fmt.Errorf("failed to fetch Redis SSM parameters: %w", err)
-	}
-
-	// SSM Keys order: [host, port, db, user, password]
-	return fmt.Sprintf("redis://%s:%s@%s:%s/%s",
-		dbInfos[3], // user
-		dbInfos[4], // password
-		dbInfos[0], // host
-		dbInfos[1], // port
-		dbInfos[2], // db
-	), nil
 }
