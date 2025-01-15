@@ -83,3 +83,19 @@ func (s *GoogleService) isGoogleIDNotExisted(key string) bool {
 	}
 	return true
 }
+
+// ExchangeToken exchanges an authorization code for an access token
+func (s *GoogleService) ExchangeToken(ctx context.Context, authCode string) (*oauth2.Token, error) {
+	// GoogleConfig가 초기화되어 있는지 확인
+	if s.config == nil {
+		return nil, fmt.Errorf("Google OAuth configuration is not initialized")
+	}
+
+	// Authorization Code로 Access Token 교환
+	token, err := s.config.Exchange(ctx, authCode)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange token: %w", err)
+	}
+
+	return token, nil
+}
