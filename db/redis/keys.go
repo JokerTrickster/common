@@ -5,4 +5,5 @@ const (
 	FoodRankingKey = "food:rankings"
 	FoodDailyKey   = "food:daily"
 	FoodMeta       = "food:meta:category"
+	FoodGuestKey   = "food:guest"
 )
