@@ -6,7 +6,6 @@ import (
 	"log"
 	"sync"
 
-
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/messaging"
 	"google.golang.org/api/option"
@@ -64,20 +63,11 @@ func (f *FirebaseService) GetClient() (*messaging.Client, error) {
 }
 
 // SendNotification sends a notification to a specific device
-func (f *FirebaseService) SendNotification(ctx context.Context, token, title, body string) error {
+func (f *FirebaseService) SendNotification(ctx context.Context, message *messaging.Message) error {
 	client, err := f.GetClient()
 	if err != nil {
 		return err
 	}
-
-	message := &messaging.Message{
-		Notification: &messaging.Notification{
-			Title: title,
-			Body:  body,
-		},
-		Token: token,
-	}
-
 	_, err = client.Send(ctx, message)
 	if err != nil {
 		return fmt.Errorf("failed to send notification: %w", err)
