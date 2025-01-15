@@ -52,3 +52,13 @@ func getOSLookupEnv(envVarNames []string) (map[string]string, error) {
 	}
 	return result, nil
 }
+
+func PtrTrue() *bool {
+	b := true
+	return &b
+}
+
+func PtrFalse() *bool {
+	b := false
+	return &b
+}
