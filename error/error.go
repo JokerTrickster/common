@@ -50,3 +50,25 @@ func Trace() string {
 	_, line := runtime.FuncForPC(pc).FileLine(pc)
 	return fmt.Sprintf("%s.L%d", funcName, line)
 }
+
+// GenerateHTTPErrorResponse generates a standard HTTP error response
+func GenerateHTTPErrorResponse(err error) (int, ResError) {
+	// Parse the error into an Err struct
+	parsedErr := ParseError(err.Error())
+
+	// Map the parsed error to an HTTP response
+	resError := ResError{
+		ErrType: parsedErr.ErrType,
+		Msg:     parsedErr.Msg,
+	}
+	return parsedErr.HttpCode, resError
+}
+
+// GenerateCustomErrorResponse allows creating custom errors without using ParseError
+func GenerateCustomErrorResponse(httpCode int, errType, msg string) (int, ResError) {
+	resError := ResError{
+		ErrType: errType,
+		Msg:     msg,
+	}
+	return httpCode, resError
+}
