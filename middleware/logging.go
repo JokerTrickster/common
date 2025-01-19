@@ -1,12 +1,10 @@
 package middleware
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	_error "github.com/JokerTrickster/common/error"
 	"github.com/JokerTrickster/common/logging"
 	"github.com/JokerTrickster/common/request"
 
@@ -51,40 +49,7 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 
 			if err != nil {
 				// 핸들러 실행 중 에러 발생 시 에러 로그 출력
-				var resError _error.ResError
-				var httpErrStruct HTTPErrorStruct
-				// 에러 메시지를 분리하여 파싱
-				errMessage := err.Error()
-				parts := strings.SplitN(errMessage, ", ", 2)
-				if len(parts) == 2 {
-					// code=... 추출
-					fmt.Sscanf(parts[0], "code=%d", &httpErrStruct.Code)
-
-					// message=... 추출
-					messagePart := strings.TrimPrefix(parts[1], "message=")
-					httpErrStruct.Message = messagePart
-				}
-				fmt.Println("해보자 : ", httpErrStruct)
-				// message가 JSON이면 파싱
-				if json.Unmarshal([]byte(httpErrStruct.Message), &resError) == nil {
-					// 구조화된 에러 로그 출력
-					logger.Error(logging.Log{
-						Url:          c.Request().URL.Path,
-						Method:       c.Request().Method,
-						RequestID:    c.Response().Header().Get(echo.HeaderXRequestID),
-						Latency:      latency.Milliseconds(),
-						HttpCode:     httpErrStruct.Code,
-						RequestBody:  requestData.Body,
-						RequestPath:  requestData.Path,
-						RequestQuery: requestData.Query,
-						ErrorInfo: &logging.ErrorInfo{
-							Msg:       resError.Msg,
-							ErrorType: resError.ErrType,
-							Stack:     resError.Trace,
-							From:      resError.From,
-						},
-					})
-				}
+				handleAndLogError(c, logger, err, requestData, latency)
 				return err
 			}
 
@@ -103,4 +68,56 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 			return nil
 		}
 	}
+}
+
+// handleAndLogError handles and logs errors with structured parsing
+func handleAndLogError(c echo.Context, logger *logging.Logger, err error, requestData request.RequestData, latency time.Duration) {
+	var httpErrStruct HTTPErrorStruct
+	// 에러 메시지 분석
+	errMessage := err.Error()
+	parts := strings.SplitN(errMessage, ", ", 2)
+	if len(parts) == 2 {
+		// code=... 추출
+		fmt.Sscanf(parts[0], "code=%d", &httpErrStruct.Code)
+
+		// message=... 추출
+		httpErrStruct.Message = strings.TrimPrefix(parts[1], "message=")
+	}
+
+	// message가 JSON이면 파싱
+	errorType, errorMsg, stack, from := parseErrorMessage(httpErrStruct.Message)
+	// 구조화된 에러 로그 출력
+	logger.Error(logging.Log{
+		Url:          c.Request().URL.Path,
+		Method:       c.Request().Method,
+		RequestID:    c.Response().Header().Get(echo.HeaderXRequestID),
+		Latency:      latency.Milliseconds(),
+		HttpCode:     httpErrStruct.Code,
+		RequestBody:  requestData.Body,
+		RequestPath:  requestData.Path,
+		RequestQuery: requestData.Query,
+		ErrorInfo: &logging.ErrorInfo{
+			Msg:       errorMsg,
+			ErrorType: errorType,
+			Stack:     stack,
+			From:      from,
+		},
+	})
+}
+
+// parseErrorMessage parses the error message string into structured components
+func parseErrorMessage(message string) (errorType, errorMsg, stack, from string) {
+	// 중괄호 제거
+	message = strings.Trim(message, "{}")
+
+	// 공백 기준으로 나누기
+	parts := strings.Fields(message)
+	if len(parts) >= 4 {
+		errorType = parts[0]                // 첫 번째 부분: 에러 타입
+		errorMsg = parts[1]                 // 두 번째 부분: 에러 메시지
+		stack = parts[2]                    // 세 번째 부분: 스택 정보
+		from = strings.Join(parts[3:], " ") // 나머지 부분: 추가 정보
+	}
+
+	return errorType, errorMsg, stack, from
 }
