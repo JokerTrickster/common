@@ -46,6 +46,7 @@ func ParseRequest(c echo.Context) (RequestData, error) {
 		pathValues[param] = c.Param(param)
 	}
 	requestData.Path = pathValues
+	
 
 	return requestData, nil
 }

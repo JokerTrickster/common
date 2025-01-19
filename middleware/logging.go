@@ -36,37 +36,43 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 
 			// 다음 핸들러 실행
 			err := next(c)
+			fmt.Println(requestData.Body)
+			fmt.Println(requestData.Path)
+			fmt.Println(requestData.Query)
 
 			// 요청 종료 후 로깅
 			response := c.Response()
 			latency := time.Since(startTime)
-			fmt.Println("미리 체크 ", err)
-			fmt.Println("미리 체크 2 ", requestData)
-
 			if err != nil {
-				// 핸들러 실행 중 에러 발생 시 에러 로그 출력
-				fmt.Println("여기 들어오는지 체크 ", err)
-				var resError _error.ResError
-				if parseErr := json.Unmarshal([]byte(err.Error()), &resError); parseErr == nil {
-					// 에러 로그 출력 (구조화된 에러 정보 포함)
-					logger.Error(logging.Log{
-						Url:          c.Request().URL.Path,
-						Method:       c.Request().Method,
-						RequestID:    c.Response().Header().Get(echo.HeaderXRequestID),
-						Latency:      latency.Milliseconds(),
-						HttpCode:     response.Status,
-						RequestBody:  requestData.Body,
-						RequestPath:  requestData.Path,
-						RequestQuery: requestData.Query,
-						ErrorInfo: &logging.ErrorInfo{
-							Msg:       resError.Msg,     // 에러 메시지
-							ErrorType: resError.ErrType, // 에러 타입
-							Stack:     resError.Trace,   // 에러 스택
-							From:      resError.From,    // 에러 발생 위치
-						},
-					})
+				// Echo HTTPError 처리
+				// Echo HTTPError 처리
+				if httpErr, ok := err.(*echo.HTTPError); ok {
+					var resError _error.ResError
+
+					// Message가 JSON인지 확인하고 파싱
+					if messageJSON, ok := httpErr.Message.(string); ok {
+						if parseErr := json.Unmarshal([]byte(messageJSON), &resError); parseErr == nil {
+							// 에러 로그 출력
+							logger.Error(logging.Log{
+								Url:          c.Request().URL.Path,
+								Method:       c.Request().Method,
+								RequestID:    c.Response().Header().Get(echo.HeaderXRequestID),
+								Latency:      latency.Milliseconds(),
+								HttpCode:     httpErr.Code,
+								RequestBody:  requestData.Body,
+								RequestPath:  requestData.Path,
+								RequestQuery: requestData.Query,
+								ErrorInfo: &logging.ErrorInfo{
+									Msg:       resError.Msg,
+									ErrorType: resError.ErrType,
+									Stack:     resError.Trace,
+									From:      resError.From,
+								},
+							})
+							return err
+						}
+					}
 				}
-				return err
 			}
 
 			// 정상 요청 정보 로깅
