@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	_error "github.com/JokerTrickster/common/error"
 	"github.com/JokerTrickster/common/logging"
 	"github.com/JokerTrickster/common/request"
 
@@ -72,35 +73,28 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 
 // handleAndLogError handles and logs errors with structured parsing
 func handleAndLogError(c echo.Context, logger *logging.Logger, err error, requestData request.RequestData, latency time.Duration) {
-	var httpErrStruct HTTPErrorStruct
-	// 에러 메시지 분석
-	errMessage := err.Error()
-	parts := strings.SplitN(errMessage, ", ", 2)
-	if len(parts) == 2 {
-		// code=... 추출
-		fmt.Sscanf(parts[0], "code=%d", &httpErrStruct.Code)
+	var resError _error.CustomError
 
-		// message=... 추출
-		httpErrStruct.Message = strings.TrimPrefix(parts[1], "message=")
+	// 에러가 CustomError 타입인지 확인
+	if customErr, ok := err.(_error.CustomError); ok {
+		resError = customErr
 	}
 
-	// message가 JSON이면 파싱
-	errorType, errorMsg, stack, from := parseErrorMessage(httpErrStruct.Message)
 	// 구조화된 에러 로그 출력
 	logger.Error(logging.Log{
 		Url:          c.Request().URL.Path,
 		Method:       c.Request().Method,
 		RequestID:    c.Response().Header().Get(echo.HeaderXRequestID),
 		Latency:      latency.Milliseconds(),
-		HttpCode:     httpErrStruct.Code,
+		HttpCode:     400,
 		RequestBody:  requestData.Body,
 		RequestPath:  requestData.Path,
 		RequestQuery: requestData.Query,
 		ErrorInfo: &logging.ErrorInfo{
-			Msg:       errorMsg,
-			ErrorType: errorType,
-			Stack:     stack,
-			From:      from,
+			Msg:       resError.Msg,
+			ErrorType: resError.ErrType,
+			Stack:     resError.Trace,
+			From:      resError.From,
 		},
 	})
 }
