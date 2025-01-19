@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	_error "github.com/JokerTrickster/common/error"
@@ -39,10 +40,12 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 			// 요청 종료 후 로깅
 			response := c.Response()
 			latency := time.Since(startTime)
+			fmt.Println("미리 체크 ", err)
+			fmt.Println("미리 체크 2 ", requestData)
 
 			if err != nil {
 				// 핸들러 실행 중 에러 발생 시 에러 로그 출력
-
+				fmt.Println("여기 들어오는지 체크 ", err)
 				var resError _error.ResError
 				if parseErr := json.Unmarshal([]byte(err.Error()), &resError); parseErr == nil {
 					// 에러 로그 출력 (구조화된 에러 정보 포함)
