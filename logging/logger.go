@@ -1,68 +1,78 @@
 package logging
 
-/*
-	로깅 초기화 및 로깅 유틸리티 함수
-*/
-
 import (
 	"encoding/json"
-	"fmt"
 	"log"
-	"os"
-	"reflect"
+	"time"
 )
 
-var (
-	infoLogger    *log.Logger
-	warningLogger *log.Logger
-	errorLogger   *log.Logger
-)
+// Log represents the structure of a log entry
+type Log struct {
+	Project      string                 `json:"project"`
+	Created      string                 `json:"created"`
+	Env          string                 `json:"env"`
+	Type         string                 `json:"type"`
+	UserID       string                 `json:"userID,omitempty"`
+	Url          string                 `json:"url"`
+	Method       string                 `json:"method"`
+	Latency      int64                  `json:"latency"`
+	HttpCode     int                    `json:"httpCode"`
+	RequestID    string                 `json:"requestID"`
+	RequestBody  map[string]interface{} `json:"requestBody,omitempty"`
+	RequestPath  map[string]string      `json:"requestPath,omitempty"`
+	RequestQuery map[string][]string    `json:"requestQuery,omitempty"`
+	ErrorInfo    *ErrorInfo             `json:"errorInfo,omitempty"`
+}
 
-// InitLogging initializes loggers for info, warning, and error levels
-func InitLogging() error {
-	infoFile, err := os.OpenFile("logs/info.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+// ErrorInfo contains details about an error
+type ErrorInfo struct {
+	Stack     string `json:"stack,omitempty"`
+	ErrorType string `json:"errorType,omitempty"`
+	Msg       string `json:"msg,omitempty"`
+	From      string `json:"from,omitempty"`
+}
+
+// Logger is the common logging interface
+type Logger struct {
+	project string
+	env     string
+}
+
+// NewLogger initializes a new logger
+func NewLogger(project, env string) *Logger {
+	return &Logger{
+		project: project,
+		env:     env,
+	}
+}
+
+// Info logs informational messages
+func (l *Logger) Info(logData Log) {
+	logData.Project = l.project
+	logData.Env = l.env
+	logData.Created = time.Now().Format(time.RFC3339)
+	logData.Type = "info"
+
+	l.log(logData)
+}
+
+// Error logs error messages
+func (l *Logger) Error(logData Log) {
+	logData.Project = l.project
+	logData.Env = l.env
+	logData.Created = time.Now().Format(time.RFC3339)
+	logData.Type = "error"
+
+	l.log(logData)
+}
+
+// log writes the log entry as JSON to stdout
+func (l *Logger) log(logData Log) {
+	jsonData, err := json.Marshal(logData)
 	if err != nil {
-		return fmt.Errorf("failed to open info log file: %v", err)
+		log.Printf("Failed to marshal log data: %v", err)
+		return
 	}
-	warningFile, err := os.OpenFile("logs/warning.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		return fmt.Errorf("failed to open warning log file: %v", err)
-	}
-	errorFile, err := os.OpenFile("logs/error.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		return fmt.Errorf("failed to open error log file: %v", err)
-	}
-
-	infoLogger = log.New(infoFile, "", log.LstdFlags)
-	warningLogger = log.New(warningFile, "", log.LstdFlags)
-	errorLogger = log.New(errorFile, "", log.LstdFlags)
-
-	return nil
-}
-
-// LogInfo logs an info-level message
-func LogInfo(logContent interface{}) {
-	infoLogger.Printf("%s", getStringFromInterface(logContent))
-}
-
-// LogWarning logs a warning-level message
-func LogWarning(logContent interface{}) {
-	warningLogger.Printf("%s", getStringFromInterface(logContent))
-}
-
-// LogError logs an error-level message
-func LogError(logContent interface{}) {
-	errorLogger.Printf("%s", getStringFromInterface(logContent))
-}
-
-// getStringFromInterface converts an interface to a string
-func getStringFromInterface(logContent interface{}) string {
-	if reflect.Indirect(reflect.ValueOf(logContent)).Kind() == reflect.Struct {
-		raw, err := json.Marshal(logContent)
-		if err != nil {
-			return fmt.Sprintf("%v", logContent)
-		}
-		return string(raw)
-	}
-	return fmt.Sprintf("%v", logContent)
+	// Print to stdout (CloudWatch Logs will capture this)
+	log.Println(string(jsonData))
 }
