@@ -2,7 +2,6 @@ package error
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"runtime"
 	"strings"
@@ -41,26 +40,9 @@ func ParseError(data string) Err {
 	}
 }
 
-type CustomError struct {
-	ErrType string `json:"errType"`
-	Trace   string `json:"trace"`
-	Msg     string `json:"msg"`
-	From    string `json:"from"`
-}
-
-func (e CustomError) Error() string {
-	// 에러 메시지를 JSON 문자열로 변환
-	errorJSON, _ := json.Marshal(e)
-	return string(errorJSON)
-}
-
+// CreateError formats an error with additional context information
 func CreateError(ctx context.Context, errType string, trace string, msg string, from string) error {
-	return CustomError{
-		ErrType: errType,
-		Trace:   trace,
-		Msg:     msg,
-		From:    from,
-	}
+	return fmt.Errorf("%s|%s|%s|%s", errType, trace, msg, from)
 }
 
 // Trace captures the function name and line number where the error occurred

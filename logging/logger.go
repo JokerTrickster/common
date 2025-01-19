@@ -21,7 +21,7 @@ type Log struct {
 	RequestBody  map[string]interface{} `json:"requestBody,omitempty"`
 	RequestPath  map[string]string      `json:"requestPath,omitempty"`
 	RequestQuery map[string][]string    `json:"requestQuery,omitempty"`
-	ErrorInfo    *ErrorInfo             `json:"errorInfo,omitempty"`
+	ErrorInfo    string                 `json:"errorInfo,omitempty"`
 }
 
 // ErrorInfo contains details about an error
