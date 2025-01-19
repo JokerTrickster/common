@@ -15,6 +15,8 @@ import (
 type ResError struct {
 	ErrType string `json:"errType,omitempty"`
 	Msg     string `json:"msg,omitempty"`
+	Trace   string `json:"trace,omitempty"`
+	From    string `json:"from,omitempty"`
 }
 
 // Err represents the error format for logging
@@ -60,6 +62,8 @@ func GenerateHTTPErrorResponse(err error) (int, ResError) {
 	resError := ResError{
 		ErrType: parsedErr.ErrType,
 		Msg:     parsedErr.Msg,
+		Trace:   parsedErr.Trace,
+		From:    parsedErr.From,
 	}
 	return parsedErr.HttpCode, resError
 }

@@ -40,6 +40,7 @@ type Logger struct {
 
 // NewLogger initializes a new logger
 func NewLogger(project, env string) *Logger {
+	log.SetFlags(0)
 	return &Logger{
 		project: project,
 		env:     env,
