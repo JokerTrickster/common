@@ -69,7 +69,7 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 									From:      resError.From,
 								},
 							})
-							return err
+							return c.JSON(httpErr.Code, resError)
 						}
 					}
 				}
