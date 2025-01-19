@@ -43,6 +43,7 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 
 			// 다음 핸들러 실행
 			err := next(c)
+			fmt.Println(err)
 
 			// 요청 종료 후 로깅
 			response := c.Response()
@@ -63,6 +64,7 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 					messagePart := strings.TrimPrefix(parts[1], "message=")
 					httpErrStruct.Message = messagePart
 				}
+				fmt.Println("해보자 : ", httpErrStruct)
 				// message가 JSON이면 파싱
 				if json.Unmarshal([]byte(httpErrStruct.Message), &resError) == nil {
 					// 구조화된 에러 로그 출력
