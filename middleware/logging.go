@@ -25,7 +25,6 @@ func LoggingMiddleware(logger *logging.Logger) echo.MiddlewareFunc {
 
 			// 요청 데이터 파싱
 			requestData, parseErr := request.ParseRequest(c)
-			fmt.Println(requestData)
 			if parseErr != nil {
 				// 요청 데이터 파싱 실패 시 에러 로그 출력
 				logger.Error(logging.Log{
