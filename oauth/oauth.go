@@ -2,10 +2,13 @@ package oauth
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/lestrrat-go/jwx/jwk"
 )
 
 // OAuthData represents user information returned by an OAuth provider
@@ -24,58 +27,71 @@ const (
 	AuthProviderNaver
 )
 
+var httpClient = http.DefaultClient
 var authProviderName = map[AuthProvider]string{
 	AuthProviderGoogle: "google",
 	AuthProviderKakao:  "kakao",
 	AuthProviderNaver:  "naver",
 }
 
-// jwtVerifyWithKeySet verifies the JWT token using the given provider's public key URL
-func JwtVerifyWithKeySet(ctx context.Context, provider string, token, keyURL string) (jwt.MapClaims, error) {
-	// Fetch the key set from the provided URL
-	keySet, err := fetchKeySet(keyURL)
+// JwtVerify verify data
+func JwtVerifyWithKeySet(ctx context.Context, p string, tokenString string, keySetUrl string) (jwt.MapClaims, error) {
+
+	ctxHttp, ctxHttpCancel := context.WithTimeout(ctx, time.Second*10)
+	defer ctxHttpCancel()
+
+	req, err := http.NewRequestWithContext(ctxHttp, http.MethodGet, keySetUrl, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch key set for provider %s: %w", provider, err)
+		return nil, err
 	}
 
-	// Parse the JWT token
-	parsedToken, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
-		if kid, ok := t.Header["kid"].(string); ok {
-			if key, exists := keySet[kid]; exists {
-				return key, nil
-			}
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, err
+	}
+
+	bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	set, err := jwk.Parse(bytes)
+	if err != nil {
+		return nil, err
+	}
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		// Verify the token signing method
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return nil, errors.New("invalid key ID in token")
+
+		// Retrieve the key ID from the token header
+		keyID, ok := token.Header["kid"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing key ID (kid) in token header")
+		}
+
+		// Look up the key in the key set
+		key, exists := set.LookupKeyID(keyID)
+		if !exists {
+			return nil, fmt.Errorf("key ID %s not found", keyID)
+		}
+
+		var pubKey interface{}
+		if err := key.Raw(&pubKey); err != nil {
+			return nil, fmt.Errorf("failed to get raw key: %w", err)
+		}
+		return pubKey, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse JWT for provider %s: %w", provider, err)
+		return nil, err
 	}
-
-	// Extract claims if the token is valid
-	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
-		return claims, nil
-	}
-
-	return nil, errors.New("invalid token")
-}
-
-// fetchKeySet fetches the public key set from the provided URL
-func fetchKeySet(keyURL string) (map[string]interface{}, error) {
-	// This function should fetch the key set from the given key URL
-	// and return a map of keys indexed by their `kid`.
-	// This is a placeholder implementation and should be replaced
-	// with actual logic to fetch and parse the key set.
-
-	// Example:
-	// {
-	//   "keys": [
-	//     { "kid": "key1", "n": "...", "e": "..." },
-	//     { "kid": "key2", "n": "...", "e": "..." }
-	//   ]
-	// }
-
-	// Return an empty map as a placeholder
-	return map[string]interface{}{
-		"example-kid": "example-key", // Replace with actual key fetching logic
-	}, nil
+	fmt.Println(token.Valid)
+	return claims, nil
 }
