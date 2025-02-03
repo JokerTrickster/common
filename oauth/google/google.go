@@ -56,7 +56,8 @@ func (s *GoogleService) Validate(ctx context.Context, token string) (oauth.OAuth
 	if err != nil {
 		return oauth.OAuthData{}, err
 	}
-
+	fmt.Println(claims)
+	fmt.Println(s.authMeta.GoogleIosID)
 	aud, okAud := claims["aud"].(string)
 	iss, okIss := claims["iss"].(string)
 	sub, okSub := claims["sub"].(string)
@@ -65,9 +66,10 @@ func (s *GoogleService) Validate(ctx context.Context, token string) (oauth.OAuth
 	if !okAud || !okIss || !okSub || !okEmail ||
 		(aud != s.authMeta.GoogleIosID && s.isGoogleIDNotExisted(aud)) ||
 		(iss != "accounts.google.com" && iss != "https://accounts.google.com") {
+		fmt.Println("여기 들어오나??")
 		return oauth.OAuthData{}, fmt.Errorf("invalid token claims: %+v", claims)
 	}
-
+	fmt.Println(email)
 	return oauth.OAuthData{
 		ID:       sub,
 		Email:    email,
