@@ -54,6 +54,8 @@ func (s *GoogleService) Initialize(clientID, clientSecret, redirectURL string, g
 func (s *GoogleService) Validate(ctx context.Context, token string) (oauth.OAuthData, error) {
 	claims, err := oauth.JwtVerifyWithKeySet(ctx, "google", token, "https://www.googleapis.com/oauth2/v3/certs")
 	if err != nil {
+		fmt.Println("왜 에러가 나지?")
+		fmt.Println(err)
 		return oauth.OAuthData{}, err
 	}
 	fmt.Println(claims)
